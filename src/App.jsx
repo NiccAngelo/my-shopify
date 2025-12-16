@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, createContext } from 'react';
 import { ShoppingCart, Plus, Minus, Trash2, Search, User, LogOut, Package, X, Check } from 'lucide-react';
 import { getProducts, login as loginAPI, register as registerAPI, getProfile, addToCart as addToCartAPI, getCart, removeFromCart as removeFromCartAPI, updateCartItem, createOrder, getOrders } from './services/api';
-
+import AdminDashboard from './AdminDashboard';
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
@@ -73,6 +73,7 @@ function App() {
 
 function MainApp() {
   const { user, login, register, logout } = useContext(AuthContext);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [view, setView] = useState('products');
@@ -86,6 +87,14 @@ function MainApp() {
   const [error, setError] = useState('');
   const [authForm, setAuthForm] = useState({ name: '', email: '', password: '' });
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+  if (user && user.role === 'admin') {
+    setShowAdminPanel(true);
+  } else {
+    setShowAdminPanel(false);
+  }
+}, [user]);
 
   useEffect(() => {
     fetchProducts();
@@ -214,9 +223,17 @@ function MainApp() {
   const cartTotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
-  return (
-    <div className="w-screen h-screen overflow-y-auto flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50">
-      <style>{`
+ return (
+  <div className="w-screen h-screen overflow-y-auto flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    {user && user.role === 'admin' && showAdminPanel ? (
+      <AdminDashboard 
+        user={user} 
+        onLogout={logout}
+        onBackToShop={() => setShowAdminPanel(false)}
+      />
+    ) : (
+      <>
+        <style>{`
         @keyframes slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .animate-slide { animation: slide 0.3s ease-out; }
         .line-clamp-2 {
@@ -245,19 +262,27 @@ function MainApp() {
                 {user && <button onClick={() => { setView('orders'); fetchOrders(); }} className="text-sm font-medium text-gray-700 hover:text-green-600 transition">Orders</button>}
               </nav>
             </div>
-            <div className="flex items-center gap-3">
-              {user ? (
-                <>
-                  <button onClick={() => setView('cart')} className="relative p-2 text-gray-700 hover:bg-green-50 rounded-lg transition">
-                    <ShoppingCart size={18} />
-                    {cartCount > 0 && <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{cartCount}</span>}
-                  </button>
-                  <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
-                    <User size={14} className="text-green-700" />
-                    <span className="text-sm font-medium text-gray-900">{user.name}</span>
-                    <button onClick={logout} className="text-gray-600 hover:text-red-600"><LogOut size={14} /></button>
-                  </div>
-                </>
+<div className="flex items-center gap-3">
+  {user ? (
+    <>
+      {user.role === 'admin' && (
+        <button 
+          onClick={() => setShowAdminPanel(true)} 
+          className="text-sm font-medium text-gray-700 hover:text-green-600 transition"
+        >
+          Admin Panel
+        </button>
+      )}
+      <button onClick={() => setView('cart')} className="relative p-2 text-gray-700 hover:bg-green-50 rounded-lg transition">
+        <ShoppingCart size={18} />
+        {cartCount > 0 && <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">{cartCount}</span>}
+      </button>
+      <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+        <User size={14} className="text-green-700" />
+        <span className="text-sm font-medium text-gray-900">{user.name}</span>
+        <button onClick={logout} className="text-gray-600 hover:text-red-600"><LogOut size={14} /></button>
+      </div>
+    </>
               ) : (
                 <button onClick={() => { setAuthMode('login'); setShowAuth(true); }} className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-1.5 rounded-lg hover:from-green-700 hover:to-emerald-700 text-sm font-medium transition">Sign In</button>
               )}
@@ -436,6 +461,8 @@ function MainApp() {
             </div>
           )}
         </main>
+   )}
+        </>
       )}
     </div>
   );
