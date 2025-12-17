@@ -100,7 +100,8 @@ function MyShopifyDashboard({ user, onLogout, onBackToShop }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50 overflow-hidden">
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur border-b border-green-100">
         <div className="px-6 py-4 flex items-center justify-between">
@@ -115,13 +116,7 @@ function MyShopifyDashboard({ user, onLogout, onBackToShop }) {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={onBackToShop}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-700 hover:bg-green-50 transition"
-            >
-              <ArrowLeft size={18} />
-              <span className="text-sm font-medium text-gray-700 hover:text-green-600 transition">Back to Shop</span>
-            </button>
+
 
             <div className="flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-100">
               <span className="text-sm font-semibold text-gray-900">{user.name}</span>
