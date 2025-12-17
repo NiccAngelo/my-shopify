@@ -1,7 +1,7 @@
 import { useEffect, useState, useContext } from 'react';
 import { Package } from 'lucide-react';
-import { getOrders as getOrdersAPI } from './services/api';
-import { AuthContext } from './AuthContext';
+import { getOrders as getOrdersAPI } from '../services/api';
+import { AuthContext } from '../AuthContext';
 
 export default function OrdersView({ setView }) {
   const { user } = useContext(AuthContext);

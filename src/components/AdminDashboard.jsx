@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Package, ShoppingCart, DollarSign, LogOut, TrendingUp, Search, Menu, X } from 'lucide-react';
-import { getAllOrders, updateOrderStatus as updateOrderStatusAPI, getProducts } from './services/api';
+import { getAllOrders, updateOrderStatus as updateOrderStatusAPI, getProducts } from '../services/api';
 
 function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');

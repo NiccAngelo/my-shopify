@@ -1,14 +1,14 @@
 import { useContext, useState, useEffect, useCallback } from 'react';
 import { AuthProvider, AuthContext } from './AuthContext';
-import Header from './Header';
-import AuthModal from './AuthModal';
-import ProductsView from './ProductsView';
-import DetailView from './DetailView';
-import CartView from './CartView';
-import OrdersView from './OrdersView';
-import AdminDashboard from './AdminDashboard';
+import Header from './components/Header';
+import AuthModal from './components/AuthModal';
+import ProductsView from './components/ProductsView';
+import DetailView from './components/DetailView';
+import CartView from './components/CartView';
+import OrdersView from './components/OrdersView';
+import AdminDashboard from './components/AdminDashboard';
 import { getProducts, getCart, addToCart as addToCartAPI, updateCartItem, removeFromCart as removeFromCartAPI, createOrder, getOrders } from './services/api';
-import { Notification } from './Notification';
+import { Notification } from './components/Notification';
 
 function MainApp() {
   const { user, logout, login, register } = useContext(AuthContext);
