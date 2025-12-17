@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Package, ShoppingCart, DollarSign, LogOut, TrendingUp, Search, Menu, X } from 'lucide-react';
 import { getAllOrders, updateOrderStatus as updateOrderStatusAPI, getProducts } from './services/api';
 
-function MyShopifyDashboard({ user, onLogout }) {
+function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
@@ -95,36 +95,39 @@ function MyShopifyDashboard({ user, onLogout }) {
 
       {/* Header */}
       <header className="bg-white/80 backdrop-blur border-b border-green-100 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-3 rounded-xl shadow">
-            <Package className="text-white" size={24} />
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 sm:p-3 rounded-xl shadow">
+            <Package className="text-white" size={20} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">MyShopify</h1>
-            <p className="text-sm text-gray-600">Store overview & management</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">MyShopify</h1>
+            <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Store overview & management</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-100">
+        <div className="flex items-center gap-2">
+          {/* Mobile menu toggle - ALWAYS visible on mobile */}
+          <button 
+            className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-red-600 hover:bg-red-50 border-t border-gray-200 mt-4 pt-4"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          
+          <div className="hidden md:flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-100">
             <span className="text-sm font-semibold text-gray-900">{user.name}</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-600 text-white">ADMIN</span>
           </div>
-          <button onClick={onLogout} className="p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 transition">
+          <button onClick={onLogout} className="hidden md:block p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 transition">
             <LogOut size={20} />
-          </button>
-
-          {/* Mobile menu toggle */}
-          <button className="sm:hidden p-2 text-gray-700 rounded-lg hover:bg-green-50" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Sidebar */}
-        <aside className={`bg-white border-r border-green-100 min-h-[calc(100vh-73px)] transition-transform duration-300 sm:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'} fixed sm:static z-20 w-64`}>
+        {/* Sidebar - Fixed for mobile visibility */}
+        <aside className={`bg-white border-r border-green-100 transition-all duration-300 ${mobileMenuOpen ? 'block' : 'hidden'} md:block w-full md:w-64 fixed md:static inset-0 md:inset-auto z-20 h-full overflow-y-auto`}>
           <nav className="p-4 space-y-2">
             {navItems.map(({ id, label, icon: Icon }) => (
               <button
@@ -138,6 +141,15 @@ function MyShopifyDashboard({ user, onLogout }) {
                 {label}
               </button>
             ))}
+            
+            {/* Logout button for mobile */}
+            <button
+              onClick={() => { onLogout(); setMobileMenuOpen(false); }}
+              className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-red-600 hover:bg-red-50 border-t border-gray-200 mt-4 pt-4"
+            >
+              <LogOut size={20} />
+              Logout
+            </button>
           </nav>
         </aside>
 
@@ -288,4 +300,4 @@ function StatCard({ title, value, icon: Icon, highlight }) {
   );
 }
 
-export default MyShopifyDashboard;
+export default AdminDashboard;
