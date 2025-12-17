@@ -47,4 +47,8 @@ export const createOrder = (data) => api.post('/orders', data);
 export const getOrders = () => api.get('/orders');
 export const getOrderById = (id) => api.get(`/orders/${id}`);
 
+// Admin Order APIs
+export const getAllOrders = () => api.get('/orders/admin/all');
+export const updateOrderStatus = (orderId, status) => api.put(`/orders/${orderId}/status`, { status });
+
 export default api;
