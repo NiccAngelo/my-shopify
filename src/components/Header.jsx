@@ -1,5 +1,6 @@
 import { ShoppingCart, User, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import logo from '../assets/quickcart-logo.png';
 
 export default function Header({ user, cartCount, setView, logout, setShowAuth, setAuthMode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -12,12 +13,16 @@ export default function Header({ user, cartCount, setView, logout, setShowAuth, 
           {/* Left: Logo + Desktop Nav */}
           <div className="flex items-center gap-6">
             {/* Logo */}
-            <button onClick={() => setView('products')} className="flex items-center gap-2">
-              <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 rounded-lg">
-                <ShoppingCart size={18} className="text-white" />
-              </div>
-              <span className="text-lg font-bold bg-gradient-to-r from-green-700 to-emerald-600 bg-clip-text text-transparent">MyShop</span>
-            </button>
+
+
+
+            <img
+              src={logo}
+              alt="MyShop Logo"
+              className="h-10 w-auto"
+            />
+
+
 
             {/* Desktop Nav */}
             <nav className="hidden md:flex gap-6">

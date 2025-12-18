@@ -113,7 +113,7 @@ function MainApp() {
   if (user?.role === 'admin') return <AdminDashboard user={user} onLogout={logout} />;
 
   return (
-    <div className="w-screen h-screen overflow-y-auto flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50">
+    <div className="w-screen h-screen overflow-y-auto flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50 relative">
       {notification && <Notification {...notification} onClose={() => setNotification(null)} />}
       <Header user={user} cartCount={cartCount} setView={setView} logout={logout} setShowAuth={setShowAuth} setAuthMode={setAuthMode} />
       {showAuth && <AuthModal authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} handleAuth={handleAuth} loading={loading} error={error} setShowAuth={setShowAuth} />}
