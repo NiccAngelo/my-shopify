@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Package, ShoppingCart, DollarSign, LogOut, TrendingUp, Search, Menu, X } from 'lucide-react';
 import { getAllOrders, updateOrderStatus as updateOrderStatusAPI, getProducts } from '../services/api';
+import DashboardHeader from './DashboardHeader';
+import DashboardSidebar from './DashboardSidebar';
+import OverviewTab from './OverviewTab';
+import OrdersTab from './OrdersTab';
+import ProductsTab from './ProductsTab';
+import { ToastContainer } from './Toast';
 
 function AdminDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
@@ -9,50 +14,143 @@ function AdminDashboard({ user, onLogout }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ totalOrders: 0, pendingOrders: 0, totalRevenue: 0, totalProducts: 0 });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState({ 
+    totalOrders: 0, 
+    pendingOrders: 0, 
+    totalRevenue: 0, 
+    totalProducts: 0,
+    ordersTrend: null,
+    pendingTrend: null,
+    revenueTrend: null
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Bulk actions state
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  
+  // Advanced filters state
+  const [advancedFilters, setAdvancedFilters] = useState({
+    startDate: '',
+    endDate: '',
+    statuses: [],
+    sortBy: 'date-desc'
+  });
+  
+  // Toast notifications state
+  const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     fetchOrders();
     fetchStats();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchOrders(true);
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     filterOrders();
-  }, [orders, searchTerm, statusFilter]);
+  }, [orders, searchTerm, statusFilter, advancedFilters]);
 
-  const fetchOrders = async () => {
+  const addToast = (message, type = 'info', duration = 3000) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type, duration }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  const fetchOrders = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await getAllOrders();
-      setOrders(res.data);
+      const newOrders = res.data;
+      
+      // Check for new orders
+      if (orders.length > 0 && newOrders.length > orders.length) {
+        addToast('New order received!', 'order');
+      }
+      
+      setOrders(newOrders);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
+      addToast('Failed to fetch orders', 'error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   const fetchStats = async () => {
     try {
+      setStatsLoading(true);
       const [ordersRes, productsRes] = await Promise.all([getAllOrders(), getProducts({})]);
       const allOrders = ordersRes.data;
+      
+      // Calculate current stats
       const pendingCount = allOrders.filter(o => o.status === 'pending').length;
       const totalRevenue = allOrders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+      
+      // Calculate trends (comparing to last week)
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      
+      const lastWeekOrders = allOrders.filter(o => new Date(o.created_at) < oneWeekAgo);
+      const thisWeekOrders = allOrders.filter(o => new Date(o.created_at) >= oneWeekAgo);
+      
+      const lastWeekRevenue = lastWeekOrders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+      const thisWeekRevenue = thisWeekOrders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+      
+      const revenueTrend = lastWeekRevenue > 0 
+        ? { direction: thisWeekRevenue >= lastWeekRevenue ? 'up' : 'down', value: Math.abs(((thisWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100).toFixed(1) }
+        : null;
+      
+      const ordersTrend = lastWeekOrders.length > 0
+        ? { direction: thisWeekOrders.length >= lastWeekOrders.length ? 'up' : 'down', value: Math.abs(((thisWeekOrders.length - lastWeekOrders.length) / lastWeekOrders.length) * 100).toFixed(1) }
+        : null;
+      
       setStats({
         totalOrders: allOrders.length,
         pendingOrders: pendingCount,
         totalRevenue: totalRevenue,
         totalProducts: productsRes.data.length,
+        ordersTrend,
+        revenueTrend,
+        pendingTrend: null
       });
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+    } finally {
+      setStatsLoading(false);
     }
   };
 
   const filterOrders = () => {
     let filtered = [...orders];
-    if (statusFilter !== 'all') filtered = filtered.filter(o => o.status === statusFilter);
+    
+    // Basic status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(o => o.status === statusFilter);
+    }
+    
+    // Advanced status filter
+    if (advancedFilters.statuses.length > 0) {
+      filtered = filtered.filter(o => advancedFilters.statuses.includes(o.status));
+    }
+    
+    // Date range filter
+    if (advancedFilters.startDate) {
+      filtered = filtered.filter(o => new Date(o.created_at) >= new Date(advancedFilters.startDate));
+    }
+    if (advancedFilters.endDate) {
+      filtered = filtered.filter(o => new Date(o.created_at) <= new Date(advancedFilters.endDate));
+    }
+    
+    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(o =>
         o.id.toString().includes(searchTerm) ||
@@ -60,6 +158,23 @@ function AdminDashboard({ user, onLogout }) {
         o.user_email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+    
+    // Sort
+    filtered.sort((a, b) => {
+      switch (advancedFilters.sortBy) {
+        case 'date-desc':
+          return new Date(b.created_at) - new Date(a.created_at);
+        case 'date-asc':
+          return new Date(a.created_at) - new Date(b.created_at);
+        case 'amount-desc':
+          return parseFloat(b.total_amount) - parseFloat(a.total_amount);
+        case 'amount-asc':
+          return parseFloat(a.total_amount) - parseFloat(b.total_amount);
+        default:
+          return 0;
+      }
+    });
+    
     setFilteredOrders(filtered);
   };
 
@@ -68,234 +183,130 @@ function AdminDashboard({ user, onLogout }) {
       await updateOrderStatusAPI(orderId, newStatus);
       await fetchOrders();
       await fetchStats();
+      addToast(`Order #${orderId} updated to ${newStatus}`, 'success');
     } catch {
-      alert('Failed to update order status');
+      addToast('Failed to update order status', 'error');
     }
   };
 
-  const getStatusColor = status => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      processing: 'bg-blue-100 text-blue-700 border-blue-200',
-      shipped: 'bg-purple-100 text-purple-700 border-purple-200',
-      delivered: 'bg-green-100 text-green-700 border-green-200',
-      cancelled: 'bg-red-100 text-red-700 border-red-200',
-    };
-    return colors[status] || 'bg-gray-100 text-gray-700 border-gray-200';
+  // Bulk selection handlers
+  const handleSelectOrder = (orderId, isSelected) => {
+    setSelectedOrders(prev => 
+      isSelected ? [...prev, orderId] : prev.filter(id => id !== orderId)
+    );
   };
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: TrendingUp },
-    { id: 'orders', label: 'Orders', icon: ShoppingCart },
-    { id: 'products', label: 'Products', icon: Package },
-  ];
+  const handleSelectAll = (isSelected) => {
+    setSelectedOrders(isSelected ? filteredOrders.map(o => o.id) : []);
+  };
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    try {
+      await Promise.all(
+        selectedOrders.map(orderId => updateOrderStatusAPI(orderId, newStatus))
+      );
+      await fetchOrders();
+      await fetchStats();
+      addToast(`${selectedOrders.length} orders updated to ${newStatus}`, 'success');
+      setSelectedOrders([]);
+    } catch {
+      addToast('Failed to update orders', 'error');
+    }
+  };
+
+  const handleBulkExport = () => {
+    const selectedOrdersData = orders.filter(o => selectedOrders.includes(o.id));
+    
+    // Create CSV
+    const headers = ['Order ID', 'Customer', 'Email', 'Status', 'Total', 'Date'];
+    const rows = selectedOrdersData.map(o => [
+      o.id,
+      o.user_name,
+      o.user_email,
+      o.status,
+      o.total_amount,
+      new Date(o.created_at).toLocaleString()
+    ]);
+    
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    // Download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders-export-${Date.now()}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    addToast(`Exported ${selectedOrders.length} orders to CSV`, 'success');
+  };
+
+  const handleClearSelection = () => {
+    setSelectedOrders([]);
+  };
+
+  const handleAdvancedFilterChange = (filters) => {
+    setAdvancedFilters(filters);
+  };
 
   return (
     <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50 overflow-hidden">
-
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur border-b border-green-100 px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="bg-gradient-to-br from-green-600 to-emerald-600 p-2 sm:p-3 rounded-xl shadow">
-            <Package className="text-white" size={20} />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">MyShopify</h1>
-            <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Store overview & management</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Mobile menu toggle - ALWAYS visible on mobile */}
-          <button 
-            className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-red-600 hover:bg-red-50 border-t border-gray-200 mt-4 pt-4"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          
-          <div className="hidden md:flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg border border-green-100">
-            <span className="text-sm font-semibold text-gray-900">{user.name}</span>
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-600 text-white">ADMIN</span>
-          </div>
-          <button onClick={onLogout} className="hidden md:block p-2 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 transition">
-            <LogOut size={20} />
-          </button>
-        </div>
-      </header>
+      <DashboardHeader 
+        user={user} 
+        onLogout={onLogout} 
+        mobileMenuOpen={mobileMenuOpen} 
+        setMobileMenuOpen={setMobileMenuOpen} 
+      />
 
       <div className="flex flex-1 overflow-hidden">
+        <DashboardSidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          mobileMenuOpen={mobileMenuOpen} 
+          setMobileMenuOpen={setMobileMenuOpen} 
+          onLogout={onLogout} 
+        />
 
-        {/* Sidebar - Fixed for mobile visibility */}
-        <aside className={`bg-white border-r border-green-100 transition-all duration-300 ${mobileMenuOpen ? 'block' : 'hidden'} md:block w-full md:w-64 fixed md:static inset-0 md:inset-auto z-20 h-full overflow-y-auto`}>
-          <nav className="p-4 space-y-2">
-            {navItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => { setActiveTab(id); setMobileMenuOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium ${
-                  activeTab === id ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow' : 'text-gray-700 hover:bg-green-50'
-                }`}
-              >
-                <Icon size={20} />
-                {label}
-              </button>
-            ))}
-            
-            {/* Logout button for mobile */}
-            <button
-              onClick={() => { onLogout(); setMobileMenuOpen(false); }}
-              className="md:hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-red-600 hover:bg-red-50 border-t border-gray-200 mt-4 pt-4"
-            >
-              <LogOut size={20} />
-              Logout
-            </button>
-          </nav>
-        </aside>
-
-        {/* Main content */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {activeTab === 'overview' && (
-            <>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Overview</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="Total Orders" value={stats.totalOrders} icon={ShoppingCart} />
-                <StatCard title="Pending Orders" value={stats.pendingOrders} icon={ShoppingCart} />
-                <StatCard title="Total Revenue" value={`$${stats.totalRevenue.toFixed(2)}`} icon={DollarSign} highlight />
-                <StatCard title="Total Products" value={stats.totalProducts} icon={Package} />
-              </div>
-              <div className="bg-white/80 backdrop-blur rounded-2xl p-6 border border-green-100 shadow-sm">
-                <h3 className="text-lg font-bold text-gray-900 mb-3">What you can do</h3>
-                <ul className="space-y-2 text-gray-600 text-sm">
-                  <li>• View and manage all customer orders</li>
-                  <li>• Update order status (pending → processing → shipped → delivered)</li>
-                  <li>• Track sales performance and revenue</li>
-                </ul>
-              </div>
-            </>
+            <OverviewTab 
+              stats={stats} 
+              statsLoading={statsLoading}
+              orders={orders}
+            />
           )}
-
+          
           {activeTab === 'orders' && (
-            <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-                <h2 className="text-2xl font-bold text-gray-900">Orders Management</h2>
-                <button onClick={fetchOrders} className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition text-sm font-medium shadow">
-                  Refresh
-                </button>
-              </div>
-
-              {/* Filters */}
-              <div className="bg-white/80 backdrop-blur rounded-xl p-4 border border-green-100 shadow-sm mb-6">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder="Search by order ID, customer name or email..."
-                      value={searchTerm}
-                      onChange={e => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <select
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 border border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Orders list */}
-              {loading ? (
-                <div className="bg-white/80 backdrop-blur rounded-xl p-8 border border-green-100 shadow-sm text-center">
-                  <p className="text-gray-600">Loading orders...</p>
-                </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="bg-white/80 backdrop-blur rounded-xl p-8 border border-green-100 shadow-sm text-center">
-                  <Package size={40} className="mx-auto text-gray-400 mb-3" />
-                  <p className="text-gray-600">No orders found</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {filteredOrders.map(order => (
-                    <div key={order.id} className="bg-white/80 backdrop-blur rounded-xl p-5 border border-green-100 shadow-sm hover:shadow-md transition">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                        <div>
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <h3 className="text-lg font-bold text-gray-900">Order #{order.id}</h3>
-                            <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getStatusColor(order.status)}`}>
-                              {order.status.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p><strong>Customer:</strong> {order.user_name}</p>
-                            <p><strong>Email:</strong> {order.user_email}</p>
-                            <p><strong>Date:</strong> {new Date(order.created_at).toLocaleString()}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-gray-900">${parseFloat(order.total_amount).toFixed(2)}</p>
-                          <div className="mt-2">
-                            <select
-                              value={order.status}
-                              onChange={e => handleStatusUpdate(order.id, e.target.value)}
-                              className="px-3 py-1.5 border border-green-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none cursor-pointer bg-white"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="processing">Processing</option>
-                              <option value="shipped">Shipped</option>
-                              <option value="delivered">Delivered</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-green-100 pt-4">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">Order Items:</p>
-                        <div className="space-y-2">
-                          {order.items && order.items.map((item, idx) => (
-                            <div key={idx} className="flex justify-between text-sm text-gray-600 bg-green-50 p-2 rounded">
-                              <span>{item.product_name} × {item.quantity}</span>
-                              <span className="font-medium">${(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
+            <OrdersTab 
+              filteredOrders={filteredOrders}
+              loading={loading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              onRefresh={fetchOrders}
+              onStatusUpdate={handleStatusUpdate}
+              selectedOrders={selectedOrders}
+              onSelectOrder={handleSelectOrder}
+              onSelectAll={handleSelectAll}
+              onBulkStatusUpdate={handleBulkStatusUpdate}
+              onBulkExport={handleBulkExport}
+              onClearSelection={handleClearSelection}
+              onAdvancedFilterChange={handleAdvancedFilterChange}
+              advancedFilters={advancedFilters}
+            />
           )}
-
-          {activeTab === 'products' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl p-6 border border-green-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Products Management</h2>
-              <p className="text-gray-600">This section will be available soon.</p>
-            </div>
-          )}
+          
+          {activeTab === 'products' && <ProductsTab />}
         </main>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon: Icon, highlight }) {
-  return (
-    <div className="bg-white/80 backdrop-blur rounded-2xl p-6 border border-green-100 shadow-sm">
-      <div className={`inline-flex p-3 rounded-xl mb-4 ${highlight ? 'bg-emerald-600' : 'bg-green-600'}`}>
-        <Icon className="text-white" size={22} />
-      </div>
-      <p className="text-sm text-gray-600 mb-1">{title}</p>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
+      
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
