@@ -25,26 +25,19 @@ function AdminDashboard({ user, onLogout }) {
     revenueTrend: null
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // Bulk actions state
   const [selectedOrders, setSelectedOrders] = useState([]);
-  
-  // Advanced filters state
   const [advancedFilters, setAdvancedFilters] = useState({
     startDate: '',
     endDate: '',
     statuses: [],
     sortBy: 'date-desc'
   });
-  
-  // Toast notifications state
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
     fetchOrders();
     fetchStats();
     
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       fetchOrders(true);
     }, 30000);
@@ -71,9 +64,8 @@ function AdminDashboard({ user, onLogout }) {
       const res = await getAllOrders();
       const newOrders = res.data;
       
-      // Check for new orders
       if (orders.length > 0 && newOrders.length > orders.length) {
-        addToast('New order received!', 'order');
+        addToast('🎉 New order received!', 'success');
       }
       
       setOrders(newOrders);
@@ -91,11 +83,9 @@ function AdminDashboard({ user, onLogout }) {
       const [ordersRes, productsRes] = await Promise.all([getAllOrders(), getProducts({})]);
       const allOrders = ordersRes.data;
       
-      // Calculate current stats
       const pendingCount = allOrders.filter(o => o.status === 'pending').length;
       const totalRevenue = allOrders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
       
-      // Calculate trends (comparing to last week)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       
@@ -132,17 +122,14 @@ function AdminDashboard({ user, onLogout }) {
   const filterOrders = () => {
     let filtered = [...orders];
     
-    // Basic status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(o => o.status === statusFilter);
     }
     
-    // Advanced status filter
     if (advancedFilters.statuses.length > 0) {
       filtered = filtered.filter(o => advancedFilters.statuses.includes(o.status));
     }
     
-    // Date range filter
     if (advancedFilters.startDate) {
       filtered = filtered.filter(o => new Date(o.created_at) >= new Date(advancedFilters.startDate));
     }
@@ -150,7 +137,6 @@ function AdminDashboard({ user, onLogout }) {
       filtered = filtered.filter(o => new Date(o.created_at) <= new Date(advancedFilters.endDate));
     }
     
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(o =>
         o.id.toString().includes(searchTerm) ||
@@ -159,7 +145,6 @@ function AdminDashboard({ user, onLogout }) {
       );
     }
     
-    // Sort
     filtered.sort((a, b) => {
       switch (advancedFilters.sortBy) {
         case 'date-desc':
@@ -183,13 +168,12 @@ function AdminDashboard({ user, onLogout }) {
       await updateOrderStatusAPI(orderId, newStatus);
       await fetchOrders();
       await fetchStats();
-      addToast(`Order #${orderId} updated to ${newStatus}`, 'success');
+      addToast(`✅ Order #${orderId} updated to ${newStatus}`, 'success');
     } catch {
-      addToast('Failed to update order status', 'error');
+      addToast('❌ Failed to update order status', 'error');
     }
   };
 
-  // Bulk selection handlers
   const handleSelectOrder = (orderId, isSelected) => {
     setSelectedOrders(prev => 
       isSelected ? [...prev, orderId] : prev.filter(id => id !== orderId)
@@ -207,17 +191,16 @@ function AdminDashboard({ user, onLogout }) {
       );
       await fetchOrders();
       await fetchStats();
-      addToast(`${selectedOrders.length} orders updated to ${newStatus}`, 'success');
+      addToast(`✅ ${selectedOrders.length} orders updated to ${newStatus}`, 'success');
       setSelectedOrders([]);
     } catch {
-      addToast('Failed to update orders', 'error');
+      addToast('❌ Failed to update orders', 'error');
     }
   };
 
   const handleBulkExport = () => {
     const selectedOrdersData = orders.filter(o => selectedOrders.includes(o.id));
     
-    // Create CSV
     const headers = ['Order ID', 'Customer', 'Email', 'Status', 'Total', 'Date'];
     const rows = selectedOrdersData.map(o => [
       o.id,
@@ -233,16 +216,15 @@ function AdminDashboard({ user, onLogout }) {
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
     
-    // Download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `orders-export-${Date.now()}.csv`;
+    a.download = `quickcart-orders-${Date.now()}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     
-    addToast(`Exported ${selectedOrders.length} orders to CSV`, 'success');
+    addToast(`📊 Exported ${selectedOrders.length} orders to CSV`, 'success');
   };
 
   const handleClearSelection = () => {
@@ -254,7 +236,7 @@ function AdminDashboard({ user, onLogout }) {
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50 overflow-hidden">
+    <div className="w-screen h-screen flex flex-col bg-gradient-to-br from-violet-50 via-white to-indigo-50 overflow-hidden">
       <DashboardHeader 
         user={user} 
         onLogout={onLogout} 
@@ -271,41 +253,42 @@ function AdminDashboard({ user, onLogout }) {
           onLogout={onLogout} 
         />
 
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
-          {activeTab === 'overview' && (
-            <OverviewTab 
-              stats={stats} 
-              statsLoading={statsLoading}
-              orders={orders}
-            />
-          )}
-          
-          {activeTab === 'orders' && (
-            <OrdersTab 
-              filteredOrders={filteredOrders}
-              loading={loading}
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              statusFilter={statusFilter}
-              setStatusFilter={setStatusFilter}
-              onRefresh={fetchOrders}
-              onStatusUpdate={handleStatusUpdate}
-              selectedOrders={selectedOrders}
-              onSelectOrder={handleSelectOrder}
-              onSelectAll={handleSelectAll}
-              onBulkStatusUpdate={handleBulkStatusUpdate}
-              onBulkExport={handleBulkExport}
-              onClearSelection={handleClearSelection}
-              onAdvancedFilterChange={handleAdvancedFilterChange}
-              advancedFilters={advancedFilters}
-            />
-          )}
-          
-          {activeTab === 'products' && <ProductsTab />}
+        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+          <div className="max-w-7xl mx-auto">
+            {activeTab === 'overview' && (
+              <OverviewTab 
+                stats={stats} 
+                statsLoading={statsLoading}
+                orders={orders}
+              />
+            )}
+            
+            {activeTab === 'orders' && (
+              <OrdersTab 
+                filteredOrders={filteredOrders}
+                loading={loading}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                statusFilter={statusFilter}
+                setStatusFilter={setStatusFilter}
+                onRefresh={fetchOrders}
+                onStatusUpdate={handleStatusUpdate}
+                selectedOrders={selectedOrders}
+                onSelectOrder={handleSelectOrder}
+                onSelectAll={handleSelectAll}
+                onBulkStatusUpdate={handleBulkStatusUpdate}
+                onBulkExport={handleBulkExport}
+                onClearSelection={handleClearSelection}
+                onAdvancedFilterChange={handleAdvancedFilterChange}
+                advancedFilters={advancedFilters}
+              />
+            )}
+            
+            {activeTab === 'products' && <ProductsTab />}
+          </div>
         </main>
       </div>
       
-      {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );

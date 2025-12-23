@@ -1,3 +1,4 @@
+// App.jsx
 import { useContext, useState, useEffect, useCallback } from 'react';
 import { AuthProvider, AuthContext } from './AuthContext';
 import Header from './components/Header';
@@ -110,14 +111,48 @@ function MainApp() {
     } finally { setLoading(false); }
   };
 
+  // Profile update handler
+  const handleUpdateProfile = async (profileData) => {
+    try {
+      setLoading(true);
+      
+      // TODO: Call your API to update user profile
+      // Example API call:
+      // import { updateUserProfile } from './services/api';
+      // const response = await updateUserProfile(profileData);
+      
+      // For now, just simulate success
+      console.log('Updating profile with:', profileData);
+      
+      // Show success notification
+      showNotif('Profile updated successfully!');
+      
+      // TODO: You might want to refresh user data here
+      // Example: await fetchUserData();
+      
+    } catch (err) {
+      showNotif(err.response?.data?.error || 'Failed to update profile', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (user?.role === 'admin') return <AdminDashboard user={user} onLogout={logout} />;
 
   return (
     <div className="w-screen h-screen overflow-y-auto flex flex-col bg-gradient-to-br from-green-50 via-white to-emerald-50 relative">
       {notification && <Notification {...notification} onClose={() => setNotification(null)} />}
-      <Header user={user} cartCount={cartCount} setView={setView} logout={logout} setShowAuth={setShowAuth} setAuthMode={setAuthMode} />
+      <Header 
+        user={user} 
+        cartCount={cartCount} 
+        setView={setView} 
+        logout={logout} 
+        setShowAuth={setShowAuth} 
+        setAuthMode={setAuthMode}
+        onUpdateProfile={handleUpdateProfile}
+      />
       {showAuth && <AuthModal authMode={authMode} setAuthMode={setAuthMode} authForm={authForm} setAuthForm={setAuthForm} handleAuth={handleAuth} loading={loading} error={error} setShowAuth={setShowAuth} />}
-      {view === 'products' && <ProductsView products={products} categories={categories} category={category} setCategory={setCategory} search={search} setSearch={setSearch} handleAddToCart={handleAddToCart} setSelectedProduct={setSelectedProduct} setView={setView} />}
+      {view === 'products' && <ProductsView products={products} categories={categories} category={category} setCategory={setCategory} search={search} setSearch={setSearch} handleAddToCart={handleAddToCart} setSelectedProduct={setSelectedProduct} setView={setView} user={user} />}
       {view === 'detail' && selectedProduct && <DetailView product={selectedProduct} handleAddToCart={handleAddToCart} setView={setView} />}
       {view === 'cart' && <CartView cart={cart} handleUpdateQuantity={handleUpdateQuantity} handleRemove={handleRemove} handleCheckout={handleCheckout} cartTotal={cartTotal} loading={loading} setView={setView} />}
       {view === 'orders' && <OrdersView orders={orders} setView={setView} />}

@@ -8,7 +8,7 @@ function DashboardHeader({ user, onLogout, mobileMenuOpen, setMobileMenuOpen }) 
           <Package className="text-white" size={20} />
         </div>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">MyShopify</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">QuickCart</h1>
           <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">Store overview & management</p>
         </div>
       </div>
